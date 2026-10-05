@@ -1,0 +1,2008 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111827" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+  <title>GymCourt – Basketball Shot Tracker</title>
+
+  <style>
+    :root {
+      --bg: #071018;
+      --panel: #111c27;
+      --panel2: #172532;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --orange: #ff7a00;
+      --green: #22c55e;
+      --red: #ef4444;
+      --blue: #38bdf8;
+      --border: rgba(255,255,255,.1);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI",
+        Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    button, input {
+      font: inherit;
+    }
+
+    .app {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding:
+        max(16px, env(safe-area-inset-top))
+        14px
+        max(30px, env(safe-area-inset-bottom));
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      font-size: clamp(22px, 5vw, 34px);
+      margin: 0;
+    }
+
+    .tag {
+      background: rgba(34,197,94,.12);
+      color: #86efac;
+      border: 1px solid rgba(34,197,94,.25);
+      border-radius: 999px;
+      padding: 7px 10px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .stat {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      min-width: 0;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: clamp(25px, 7vw, 42px);
+      line-height: 1;
+      overflow-wrap: anywhere;
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .main {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(250px, .85fr);
+      gap: 12px;
+    }
+
+    .camera-card,
+    .control-card,
+    .chart-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      overflow: hidden;
+    }
+
+    .stage {
+      position: relative;
+      width: 100%;
+      background: #000;
+      overflow: hidden;
+    }
+
+    video {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: #000;
+    }
+
+    #overlay {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      touch-action: none;
+    }
+
+    #overlay.calibrating {
+      pointer-events: auto;
+      cursor: crosshair;
+    }
+
+    .camera-status {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 12px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .status-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #64748b;
+      flex: 0 0 auto;
+    }
+
+    .dot.live {
+      background: var(--green);
+      box-shadow: 0 0 10px rgba(34,197,94,.7);
+    }
+
+    .controls {
+      padding: 12px;
+    }
+
+    .controls h2,
+    .chart-card h2 {
+      font-size: 15px;
+      margin: 2px 0 10px;
+    }
+
+    .button-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    button {
+      min-height: 46px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      cursor: pointer;
+      color: white;
+      background: var(--panel2);
+      font-weight: 700;
+    }
+
+    button.primary {
+      background: var(--orange);
+      border-color: var(--orange);
+      color: #111;
+    }
+
+    button.good {
+      background: rgba(34,197,94,.16);
+      border-color: rgba(34,197,94,.3);
+      color: #86efac;
+    }
+
+    button.bad {
+      background: rgba(239,68,68,.13);
+      border-color: rgba(239,68,68,.28);
+      color: #fca5a5;
+    }
+
+    button:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    .manual {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .hint {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .indicator {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 5px 10px;
+      align-items: center;
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+    }
+
+    .indicator span {
+      color: var(--muted);
+    }
+
+    .ok { color: #86efac; }
+    .no { color: #fca5a5; }
+
+    .chart-card {
+      margin-top: 12px;
+      padding: 12px;
+    }
+
+    #shotChart {
+      display: block;
+      width: 100%;
+      max-width: 700px;
+      margin: auto;
+      background: #c17b42;
+      border-radius: 12px;
+    }
+
+    .shot-log {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .shot-chip {
+      border-radius: 999px;
+      padding: 5px 8px;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .shot-chip.make {
+      background: rgba(34,197,94,.15);
+      color: #86efac;
+    }
+
+    .shot-chip.miss {
+      background: rgba(239,68,68,.13);
+      color: #fca5a5;
+    }
+
+    .bottom-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .small {
+      min-height: 40px;
+      font-size: 12px;
+    }
+
+    @media (max-width: 800px) {
+      .main {
+        grid-template-columns: 1fr;
+      }
+
+      .stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+
+  <!-- TensorFlow.js + COCO-SSD.
+       COCO-SSD kan o.a. "person" en "sports ball" detecteren. -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+</head>
+
+<body>
+<div class="app">
+
+  <header>
+    <div>
+      <h1>🏀 GymCourt</h1>
+      <div style="color:#94a3b8;font-size:13px;margin-top:3px;">
+        Live basketball shot tracker
+      </div>
+    </div>
+    <div class="tag">ON-DEVICE AI</div>
+  </header>
+
+  <section class="stats">
+    <div class="stat">
+      <strong id="attempts">0</strong>
+      <span>schoten</span>
+    </div>
+    <div class="stat">
+      <strong id="makes">0</strong>
+      <span>raak</span>
+    </div>
+    <div class="stat">
+      <strong id="percentage">0%</strong>
+      <span>percentage</span>
+    </div>
+    <div class="stat">
+      <strong id="streak">0</strong>
+      <span>streak</span>
+    </div>
+  </section>
+
+  <div class="main">
+
+    <section class="camera-card">
+      <div class="stage" id="stage">
+        <video id="video" autoplay muted playsinline></video>
+        <canvas id="overlay"></canvas>
+      </div>
+
+      <div class="camera-status">
+        <div class="status-left">
+          <div class="dot" id="liveDot"></div>
+          <span id="statusText">Camera nog niet gestart</span>
+        </div>
+        <span id="fpsText"></span>
+      </div>
+    </section>
+
+    <aside class="control-card">
+      <div class="controls">
+
+        <h2>Instellen</h2>
+
+        <div class="button-grid">
+          <button class="primary" id="cameraBtn">
+            1. Start camera
+          </button>
+
+          <button id="hoopBtn" disabled>
+            2. Markeer de ring
+          </button>
+
+          <button id="ballBtn" disabled>
+            3. Tik op de basketbal
+          </button>
+
+          <button class="good" id="sessionBtn" disabled>
+            Start nieuwe sessie
+          </button>
+        </div>
+
+        <p class="hint" id="instruction">
+          Plaats de telefoon laag op de grond, bij voorkeur ongeveer recht of schuin tegenover de basket.
+        </p>
+
+        <div class="indicator">
+          <span>Basket</span>
+          <strong id="hoopState" class="no">niet ingesteld</strong>
+
+          <span>Basketbal-kleur</span>
+          <strong id="ballState" class="no">niet ingesteld</strong>
+
+          <span>AI-objectdetectie</span>
+          <strong id="aiState" class="no">niet geladen</strong>
+
+          <span>Actieve schutter</span>
+          <strong id="playerState" class="no">zoeken…</strong>
+        </div>
+
+        <h2 style="margin-top:18px;">Handmatige correctie</h2>
+
+        <div class="manual">
+          <button class="good" id="manualMake">
+            + RAAK
+          </button>
+          <button class="bad" id="manualMiss">
+            + MIS
+          </button>
+        </div>
+
+        <p class="hint">
+          Gebruik correctie alleen wanneer de tracker een schot mist of verkeerd beoordeelt.
+        </p>
+
+      </div>
+    </aside>
+
+  </div>
+
+  <section class="chart-card">
+    <h2>Shot chart</h2>
+
+    <canvas id="shotChart" width="700" height="500"></canvas>
+
+    <div class="shot-log" id="shotLog"></div>
+
+    <div class="bottom-actions">
+      <button class="small" id="undoBtn">↶ Laatste verwijderen</button>
+      <button class="small" id="exportBtn">↓ CSV exporteren</button>
+      <button class="small" id="resetBtn">Nieuwe lege sessie</button>
+    </div>
+
+    <p class="hint">
+      Shotlocaties zijn in deze eerste webversie relatieve veldposities:
+      de voetpositie van de schutter wordt ten opzichte van de basket en camera geprojecteerd.
+    </p>
+  </section>
+
+</div>
+
+<canvas id="analysis" hidden></canvas>
+
+<script>
+(() => {
+  "use strict";
+
+  const $ = id => document.getElementById(id);
+
+  const video = $("video");
+  const overlay = $("overlay");
+  const octx = overlay.getContext("2d");
+
+  const analysisCanvas = $("analysis");
+  const actx = analysisCanvas.getContext("2d", {
+    willReadFrequently: true
+  });
+
+  const chart = $("shotChart");
+  const cctx = chart.getContext("2d");
+
+  let AW = 320;
+  let AH = 180;
+
+  const state = {
+    stream: null,
+    running: false,
+
+    model: null,
+    aiBusy: false,
+    lastAiAt: 0,
+
+    persons: [],
+    aiBalls: [],
+
+    hoop: null,
+    hoopDraft: null,
+
+    mode: "none",
+    pointerStart: null,
+
+    ballColor: null,
+
+    ball: null,
+    ballTrack: null,
+    ballHistory: [],
+    lastBallSeenAt: 0,
+
+    lastOwner: null,
+
+    pendingShot: null,
+    shots: [],
+
+    frameCounter: 0,
+    fpsCounter: 0,
+    fpsLastAt: performance.now(),
+
+    lastDetectionAt: 0
+  };
+
+  const mask = {
+    arr: null,
+    visited: null,
+    queue: null
+  };
+
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+  const dist = (a, b) => {
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+    return Math.hypot(dx, dy);
+  };
+
+  function setStatus(text) {
+    $("statusText").textContent = text;
+  }
+
+  function updateCalibrationUI() {
+    $("hoopState").textContent = state.hoop ? "✓ ingesteld" : "niet ingesteld";
+    $("hoopState").className = state.hoop ? "ok" : "no";
+
+    $("ballState").textContent = state.ballColor ? "✓ ingesteld" : "niet ingesteld";
+    $("ballState").className = state.ballColor ? "ok" : "no";
+
+    $("aiState").textContent = state.model ? "✓ actief" : "niet geladen";
+    $("aiState").className = state.model ? "ok" : "no";
+
+    $("sessionBtn").disabled = !(state.running && state.hoop);
+  }
+
+  function updateStats() {
+    const attempts = state.shots.length;
+    const makes = state.shots.filter(s => s.result === "make").length;
+
+    let streak = 0;
+    for (let i = state.shots.length - 1; i >= 0; i--) {
+      if (state.shots[i].result === "make") streak++;
+      else break;
+    }
+
+    $("attempts").textContent = attempts;
+    $("makes").textContent = makes;
+    $("percentage").textContent =
+      attempts ? Math.round(makes / attempts * 100) + "%" : "0%";
+    $("streak").textContent = streak;
+
+    const log = $("shotLog");
+    log.innerHTML = "";
+
+    state.shots.slice(-12).reverse().forEach((shot, i) => {
+      const chip = document.createElement("div");
+      chip.className =
+        "shot-chip " + (shot.result === "make" ? "make" : "miss");
+
+      chip.textContent =
+        (shot.result === "make" ? "✓ raak" : "✕ mis") +
+        " · #" +
+        (state.shots.length - i);
+
+      log.appendChild(chip);
+    });
+
+    drawShotChart();
+  }
+
+  async function startCamera() {
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("Camera API niet beschikbaar. Open deze pagina via HTTPS.");
+      }
+
+      setStatus("Camera openen…");
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 60, max: 60 }
+        }
+      });
+
+      state.stream = stream;
+      video.srcObject = stream;
+
+      await video.play();
+
+      await new Promise(resolve => {
+        if (video.videoWidth) resolve();
+        else video.onloadedmetadata = resolve;
+      });
+
+      overlay.width = video.videoWidth;
+      overlay.height = video.videoHeight;
+
+      AW = 320;
+      AH = Math.max(
+        180,
+        Math.round(AW * video.videoHeight / video.videoWidth)
+      );
+
+      analysisCanvas.width = AW;
+      analysisCanvas.height = AH;
+
+      ensureTrackingBuffers();
+
+      state.running = true;
+
+      $("liveDot").classList.add("live");
+      $("cameraBtn").textContent = "Camera actief";
+      $("cameraBtn").disabled = true;
+
+      $("hoopBtn").disabled = false;
+      $("ballBtn").disabled = false;
+
+      setStatus("Camera actief · markeer nu de ring");
+
+      requestAnimationFrame(frameLoop);
+
+      loadAI();
+
+    } catch (err) {
+      console.error(err);
+      setStatus("Camera fout: " + err.message);
+    }
+  }
+
+  async function loadAI() {
+    try {
+      $("aiState").textContent = "laden…";
+      $("aiState").className = "no";
+
+      await tf.setBackend("webgl");
+      await tf.ready();
+
+      state.model = await cocoSsd.load({
+        base: "lite_mobilenet_v2"
+      });
+
+      updateCalibrationUI();
+      setStatus("Camera + AI actief");
+
+    } catch (err) {
+      console.error("AI load error:", err);
+      $("aiState").textContent = "kleurtracker actief";
+      setStatus("AI-model niet geladen · kleurtracking blijft werken");
+    }
+  }
+
+  function ensureTrackingBuffers() {
+    const size = AW * AH;
+
+    if (!mask.arr || mask.arr.length !== size) {
+      mask.arr = new Uint8Array(size);
+      mask.visited = new Uint8Array(size);
+      mask.queue = new Int32Array(size);
+    }
+  }
+
+  function setMode(mode) {
+    state.mode = mode;
+
+    if (mode === "none") {
+      overlay.classList.remove("calibrating");
+      return;
+    }
+
+    overlay.classList.add("calibrating");
+
+    if (mode === "hoop") {
+      $("instruction").textContent =
+        "Sleep een kleine rechthoek strak om de RING. Niet om het hele bord.";
+      setStatus("Kalibratie: teken om de ring");
+    }
+
+    if (mode === "ball") {
+      $("instruction").textContent =
+        "Leg/houd de basketbal zichtbaar en tik precies in het midden van de bal.";
+      setStatus("Kalibratie: tik op de basketbal");
+    }
+  }
+
+  function eventToOverlay(e) {
+    const rect = overlay.getBoundingClientRect();
+
+    return {
+      x: (e.clientX - rect.left) * overlay.width / rect.width,
+      y: (e.clientY - rect.top) * overlay.height / rect.height
+    };
+  }
+
+  function overlayToAnalysis(p) {
+    return {
+      x: p.x / overlay.width * AW,
+      y: p.y / overlay.height * AH
+    };
+  }
+
+  overlay.addEventListener("pointerdown", e => {
+    if (state.mode === "none") return;
+
+    const p = eventToOverlay(e);
+
+    if (state.mode === "hoop") {
+      state.pointerStart = p;
+      state.hoopDraft = {
+        x: p.x,
+        y: p.y,
+        w: 0,
+        h: 0
+      };
+      overlay.setPointerCapture(e.pointerId);
+    }
+
+    if (state.mode === "ball") {
+      sampleBallColor(p);
+      setMode("none");
+    }
+  });
+
+  overlay.addEventListener("pointermove", e => {
+    if (state.mode !== "hoop" || !state.pointerStart) return;
+
+    const p = eventToOverlay(e);
+
+    const x = Math.min(state.pointerStart.x, p.x);
+    const y = Math.min(state.pointerStart.y, p.y);
+
+    state.hoopDraft = {
+      x,
+      y,
+      w: Math.abs(p.x - state.pointerStart.x),
+      h: Math.abs(p.y - state.pointerStart.y)
+    };
+  });
+
+  overlay.addEventListener("pointerup", e => {
+    if (state.mode !== "hoop" || !state.hoopDraft) return;
+
+    const r = state.hoopDraft;
+
+    if (r.w > 10 && r.h > 5) {
+      state.hoop = {
+        x: r.x / overlay.width,
+        y: r.y / overlay.height,
+        w: r.w / overlay.width,
+        h: r.h / overlay.height
+      };
+
+      setStatus("Basket ingesteld · kalibreer nu de bal");
+      $("instruction").textContent =
+        "Basket staat vast. Tik nu op 'Tik op de basketbal'.";
+    }
+
+    state.pointerStart = null;
+    state.hoopDraft = null;
+
+    setMode("none");
+    updateCalibrationUI();
+  });
+
+  function sampleBallColor(overlayPoint) {
+    if (!state.running) return;
+
+    actx.drawImage(video, 0, 0, AW, AH);
+
+    const p = overlayToAnalysis(overlayPoint);
+
+    const cx = Math.round(p.x);
+    const cy = Math.round(p.y);
+
+    const radius = 6;
+
+    const x0 = clamp(cx - radius, 0, AW - 1);
+    const y0 = clamp(cy - radius, 0, AH - 1);
+    const x1 = clamp(cx + radius, 0, AW - 1);
+    const y1 = clamp(cy + radius, 0, AH - 1);
+
+    const img = actx.getImageData(
+      x0,
+      y0,
+      Math.max(1, x1 - x0 + 1),
+      Math.max(1, y1 - y0 + 1)
+    );
+
+    let sinH = 0;
+    let cosH = 0;
+    let sTotal = 0;
+    let vTotal = 0;
+    let count = 0;
+
+    const d = img.data;
+
+    for (let i = 0; i < d.length; i += 4) {
+      const hsv = rgbToHsv(d[i], d[i + 1], d[i + 2]);
+
+      if (hsv.s < .22) continue;
+
+      const angle = hsv.h * Math.PI / 180;
+
+      sinH += Math.sin(angle) * hsv.s;
+      cosH += Math.cos(angle) * hsv.s;
+
+      sTotal += hsv.s;
+      vTotal += hsv.v;
+      count++;
+    }
+
+    if (!count) {
+      setStatus("Geen duidelijke kleur gevonden · tik opnieuw op de bal");
+      return;
+    }
+
+    let hue = Math.atan2(sinH, cosH) * 180 / Math.PI;
+    if (hue < 0) hue += 360;
+
+    state.ballColor = {
+      h: hue,
+      s: sTotal / count,
+      v: vTotal / count
+    };
+
+    state.ballTrack = {
+      x: p.x,
+      y: p.y,
+      vx: 0,
+      vy: 0,
+      t: performance.now()
+    };
+
+    state.lastBallSeenAt = performance.now();
+
+    updateCalibrationUI();
+
+    setStatus(
+      "Bal gekalibreerd · tracking actief"
+    );
+
+    $("instruction").textContent =
+      "Klaar. Zet de telefoon stil en start met schieten.";
+  }
+
+  function rgbToHsv(r, g, b) {
+    r /= 255;
+    g /= 255;
+    b /= 255;
+
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+
+    const d = max - min;
+
+    let h = 0;
+
+    if (d !== 0) {
+      switch (max) {
+        case r:
+          h = 60 * (((g - b) / d) % 6);
+          break;
+        case g:
+          h = 60 * (((b - r) / d) + 2);
+          break;
+        default:
+          h = 60 * (((r - g) / d) + 4);
+      }
+    }
+
+    if (h < 0) h += 360;
+
+    return {
+      h,
+      s: max === 0 ? 0 : d / max,
+      v: max
+    };
+  }
+
+  function hueDistance(a, b) {
+    let d = Math.abs(a - b);
+    return Math.min(d, 360 - d);
+  }
+
+  function trackBallByColor() {
+    if (!state.ballColor) return null;
+
+    ensureTrackingBuffers();
+
+    const img = actx.getImageData(0, 0, AW, AH);
+    const data = img.data;
+
+    mask.arr.fill(0);
+    mask.visited.fill(0);
+
+    const color = state.ballColor;
+
+    const predicted = state.ballTrack;
+
+    let roiX0 = 0;
+    let roiY0 = 0;
+    let roiX1 = AW - 1;
+    let roiY1 = AH - 1;
+
+    if (
+      predicted &&
+      performance.now() - predicted.t < 850
+    ) {
+      const dt =
+        Math.min(.25, (performance.now() - predicted.t) / 1000);
+
+      const px = predicted.x + predicted.vx * dt;
+      const py = predicted.y + predicted.vy * dt;
+
+      const radius = Math.max(58, AW * .20);
+
+      roiX0 = clamp(Math.floor(px - radius), 0, AW - 1);
+      roiX1 = clamp(Math.ceil(px + radius), 0, AW - 1);
+      roiY0 = clamp(Math.floor(py - radius), 0, AH - 1);
+      roiY1 = clamp(Math.ceil(py + radius), 0, AH - 1);
+    }
+
+    const minS = Math.max(.25, color.s * .48);
+    const minV = Math.max(.13, color.v * .32);
+
+    const HUE_TOL = 24;
+
+    for (let y = roiY0; y <= roiY1; y++) {
+      for (let x = roiX0; x <= roiX1; x++) {
+
+        const idx = y * AW + x;
+        const di = idx * 4;
+
+        const r = data[di] / 255;
+        const g = data[di + 1] / 255;
+        const b = data[di + 2] / 255;
+
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const delta = max - min;
+
+        const s = max === 0 ? 0 : delta / max;
+        const v = max;
+
+        if (s < minS || v < minV || delta === 0) continue;
+
+        let h;
+
+        if (max === r) {
+          h = 60 * (((g - b) / delta) % 6);
+        } else if (max === g) {
+          h = 60 * (((b - r) / delta) + 2);
+        } else {
+          h = 60 * (((r - g) / delta) + 4);
+        }
+
+        if (h < 0) h += 360;
+
+        if (hueDistance(h, color.h) <= HUE_TOL) {
+          mask.arr[idx] = 1;
+        }
+      }
+    }
+
+    let best = null;
+    let bestScore = -Infinity;
+
+    const queue = mask.queue;
+
+    for (let y = roiY0; y <= roiY1; y++) {
+      for (let x = roiX0; x <= roiX1; x++) {
+
+        const start = y * AW + x;
+
+        if (!mask.arr[start] || mask.visited[start]) continue;
+
+        let qStart = 0;
+        let qEnd = 0;
+
+        queue[qEnd++] = start;
+        mask.visited[start] = 1;
+
+        let area = 0;
+        let sumX = 0;
+        let sumY = 0;
+
+        let minX = x;
+        let maxX = x;
+        let minY = y;
+        let maxY = y;
+
+        while (qStart < qEnd) {
+          const idx = queue[qStart++];
+
+          const cy = Math.floor(idx / AW);
+          const cx = idx - cy * AW;
+
+          area++;
+          sumX += cx;
+          sumY += cy;
+
+          if (cx < minX) minX = cx;
+          if (cx > maxX) maxX = cx;
+          if (cy < minY) minY = cy;
+          if (cy > maxY) maxY = cy;
+
+          const neighbors = [
+            idx - 1,
+            idx + 1,
+            idx - AW,
+            idx + AW
+          ];
+
+          for (const n of neighbors) {
+            if (n < 0 || n >= AW * AH) continue;
+
+            const ny = Math.floor(n / AW);
+            const nx = n - ny * AW;
+
+            if (
+              nx < roiX0 || nx > roiX1 ||
+              ny < roiY0 || ny > roiY1
+            ) continue;
+
+            if (!mask.arr[n] || mask.visited[n]) continue;
+
+            mask.visited[n] = 1;
+            queue[qEnd++] = n;
+          }
+        }
+
+        if (area < 3 || area > 850) continue;
+
+        const bw = maxX - minX + 1;
+        const bh = maxY - minY + 1;
+
+        const aspect = bw / bh;
+
+        if (aspect < .35 || aspect > 2.8) continue;
+
+        const fill = area / (bw * bh);
+
+        if (fill < .18) continue;
+
+        const cx = sumX / area;
+        const cy = sumY / area;
+
+        let score =
+          Math.log(area + 1) * 1.2 +
+          fill * 4 -
+          Math.abs(Math.log(aspect)) * 2;
+
+        if (predicted) {
+          const dt =
+            Math.min(.25, (performance.now() - predicted.t) / 1000);
+
+          const px = predicted.x + predicted.vx * dt;
+          const py = predicted.y + predicted.vy * dt;
+
+          score -= Math.hypot(cx - px, cy - py) / 22;
+        }
+
+        if (score > bestScore) {
+          bestScore = score;
+
+          best = {
+            x: cx,
+            y: cy,
+            w: bw,
+            h: bh,
+            confidence: clamp(.35 + fill * .55, .35, .92),
+            source: "color"
+          };
+        }
+      }
+    }
+
+    return best;
+  }
+
+  async function runAIDetection(now) {
+    if (!state.model || state.aiBusy) return;
+    if (now - state.lastAiAt < 360) return;
+
+    state.aiBusy = true;
+    state.lastAiAt = now;
+
+    try {
+      const predictions =
+        await state.model.detect(video, 20, .28);
+
+      const sx = AW / video.videoWidth;
+      const sy = AH / video.videoHeight;
+
+      state.persons = predictions
+        .filter(p => p.class === "person" && p.score >= .34)
+        .map(p => ({
+          x: p.bbox[0] * sx,
+          y: p.bbox[1] * sy,
+          w: p.bbox[2] * sx,
+          h: p.bbox[3] * sy,
+          score: p.score,
+          t: performance.now()
+        }));
+
+      state.aiBalls = predictions
+        .filter(p => p.class === "sports ball" && p.score >= .25)
+        .map(p => ({
+          x: (p.bbox[0] + p.bbox[2] / 2) * sx,
+          y: (p.bbox[1] + p.bbox[3] / 2) * sy,
+          w: p.bbox[2] * sx,
+          h: p.bbox[3] * sy,
+          score: p.score,
+          t: performance.now(),
+          source: "ai"
+        }));
+
+    } catch (err) {
+      console.warn("Object detection:", err);
+    }
+
+    state.aiBusy = false;
+  }
+
+  function chooseAIBall() {
+    if (!state.aiBalls.length) return null;
+
+    const recent = state.aiBalls.filter(
+      b => performance.now() - b.t < 700
+    );
+
+    if (!recent.length) return null;
+
+    const track = state.ballTrack;
+
+    if (track) {
+      const dt =
+        Math.min(.3, (performance.now() - track.t) / 1000);
+
+      const pred = {
+        x: track.x + track.vx * dt,
+        y: track.y + track.vy * dt
+      };
+
+      recent.sort((a, b) =>
+        dist(a, pred) - dist(b, pred)
+      );
+
+      return recent[0];
+    }
+
+    const hoop = getHoopA();
+
+    if (hoop) {
+      const hc = {
+        x: hoop.x + hoop.w / 2,
+        y: hoop.y + hoop.h / 2
+      };
+
+      recent.sort((a, b) =>
+        dist(a, hc) - dist(b, hc)
+      );
+    }
+
+    return recent[0];
+  }
+
+  function fuseBallMeasurements(colorBall, aiBall) {
+    if (!colorBall && !aiBall) return null;
+    if (colorBall && !aiBall) return colorBall;
+    if (!colorBall && aiBall) return aiBall;
+
+    const d = dist(colorBall, aiBall);
+
+    if (d < Math.max(22, AW * .07)) {
+      return {
+        x: colorBall.x * .65 + aiBall.x * .35,
+        y: colorBall.y * .65 + aiBall.y * .35,
+        w: Math.max(colorBall.w, aiBall.w),
+        h: Math.max(colorBall.h, aiBall.h),
+        confidence:
+          clamp(
+            (colorBall.confidence + aiBall.score) / 2 + .12,
+            0,
+            .99
+          ),
+        source: "fusion"
+      };
+    }
+
+    if (state.ballTrack) {
+      const t = state.ballTrack;
+      const dt =
+        Math.min(.3, (performance.now() - t.t) / 1000);
+
+      const pred = {
+        x: t.x + t.vx * dt,
+        y: t.y + t.vy * dt
+      };
+
+      return dist(colorBall, pred) <= dist(aiBall, pred)
+        ? colorBall
+        : aiBall;
+    }
+
+    return colorBall;
+  }
+
+  function updateBallTrack(measurement, now) {
+    if (!measurement) {
+      if (
+        state.ballTrack &&
+        now - state.ballTrack.t < 260
+      ) {
+        const dt = (now - state.ballTrack.t) / 1000;
+
+        state.ball = {
+          x: state.ballTrack.x + state.ballTrack.vx * dt,
+          y: state.ballTrack.y + state.ballTrack.vy * dt,
+          w: 8,
+          h: 8,
+          inferred: true
+        };
+      } else {
+        state.ball = null;
+      }
+
+      return;
+    }
+
+    if (
+      !state.ballTrack ||
+      now - state.ballTrack.t > 700
+    ) {
+      state.ballTrack = {
+        x: measurement.x,
+        y: measurement.y,
+        vx: 0,
+        vy: 0,
+        t: now
+      };
+
+    } else {
+      let dt =
+        (now - state.ballTrack.t) / 1000;
+
+      dt = clamp(dt, .016, .25);
+
+      const predX =
+        state.ballTrack.x + state.ballTrack.vx * dt;
+      const predY =
+        state.ballTrack.y + state.ballTrack.vy * dt;
+
+      const rx = measurement.x - predX;
+      const ry = measurement.y - predY;
+
+      const alpha = .68;
+      const beta = .18;
+
+      state.ballTrack.x = predX + alpha * rx;
+      state.ballTrack.y = predY + alpha * ry;
+
+      state.ballTrack.vx += beta * rx / dt;
+      state.ballTrack.vy += beta * ry / dt;
+
+      state.ballTrack.t = now;
+    }
+
+    state.lastBallSeenAt = now;
+
+    state.ball = {
+      x: state.ballTrack.x,
+      y: state.ballTrack.y,
+      w: measurement.w || 8,
+      h: measurement.h || 8,
+      inferred: false
+    };
+
+    state.ballHistory.push({
+      x: state.ball.x,
+      y: state.ball.y,
+      t: now
+    });
+
+    while (
+      state.ballHistory.length > 30 ||
+      (
+        state.ballHistory.length &&
+        now - state.ballHistory[0].t > 1500
+      )
+    ) {
+      state.ballHistory.shift();
+    }
+  }
+
+  function findBallOwner(ball) {
+    if (!ball || !state.persons.length) return null;
+
+    let best = null;
+    let bestD = Infinity;
+
+    for (const p of state.persons) {
+      if (performance.now() - p.t > 900) continue;
+
+      const upper = {
+        x: p.x + p.w / 2,
+        y: p.y + p.h * .38
+      };
+
+      const d = dist(ball, upper);
+
+      const expanded =
+        ball.x >= p.x - p.w * .20 &&
+        ball.x <= p.x + p.w * 1.20 &&
+        ball.y >= p.y - p.h * .15 &&
+        ball.y <= p.y + p.h * .80;
+
+      if (
+        (expanded || d < Math.max(p.w, p.h) * .48) &&
+        d < bestD
+      ) {
+        bestD = d;
+        best = p;
+      }
+    }
+
+    return best;
+  }
+
+  function updateOwner(ball, now) {
+    const owner = findBallOwner(ball);
+
+    if (owner) {
+      state.lastOwner = {
+        person: { ...owner },
+        t: now
+      };
+
+      $("playerState").textContent = "✓ gevonden";
+      $("playerState").className = "ok";
+
+    } else if (
+      !state.lastOwner ||
+      now - state.lastOwner.t > 1000
+    ) {
+      $("playerState").textContent = "zoeken…";
+      $("playerState").className = "no";
+    }
+  }
+
+  function getHoopA() {
+    if (!state.hoop) return null;
+
+    return {
+      x: state.hoop.x * AW,
+      y: state.hoop.y * AH,
+      w: state.hoop.w * AW,
+      h: state.hoop.h * AH
+    };
+  }
+
+  function getVelocity() {
+    const h = state.ballHistory;
+
+    if (h.length < 3) {
+      return { vx: 0, vy: 0 };
+    }
+
+    const newest = h[h.length - 1];
+
+    let older = h[0];
+
+    for (let i = h.length - 2; i >= 0; i--) {
+      if (newest.t - h[i].t >= 90) {
+        older = h[i];
+        break;
+      }
+    }
+
+    const dt = Math.max(.04, (newest.t - older.t) / 1000);
+
+    return {
+      vx: (newest.x - older.x) / dt,
+      vy: (newest.y - older.y) / dt
+    };
+  }
+
+  function maybeStartShot(now) {
+    if (
+      state.pendingShot ||
+      !state.ball ||
+      !state.hoop
+    ) return;
+
+    const v = getVelocity();
+    const hoop = getHoopA();
+
+    const hoopX = hoop.x + hoop.w / 2;
+    const hoopY = hoop.y + hoop.h / 2;
+
+    const ownerRecent =
+      state.lastOwner &&
+      now - state.lastOwner.t < 800;
+
+    const risingFast =
+      v.vy < -AH * .28;
+
+    const belowHoop =
+      state.ball.y > hoopY + hoop.h * .40;
+
+    const horizontallyRelevant =
+      Math.abs(state.ball.x - hoopX) < AW * .48;
+
+    if (
+      risingFast &&
+      belowHoop &&
+      horizontallyRelevant &&
+      ownerRecent
+    ) {
+      const p = state.lastOwner.person;
+
+      const origin = {
+        x: p.x + p.w / 2,
+        y: p.y + p.h
+      };
+
+      state.pendingShot = {
+        startedAt: now,
+        origin,
+        hasBeenAbove: false,
+        counted: true
+      };
+
+      setStatus("🏀 Schot gedetecteerd…");
+    }
+  }
+
+  function updatePendingShot(now) {
+    const shot = state.pendingShot;
+
+    if (!shot || !state.hoop) return;
+
+    const hoop = getHoopA();
+    const ball = state.ball;
+
+    const hoopCenterY = hoop.y + hoop.h / 2;
+
+    if (ball) {
+      const wideEnough =
+        ball.x >= hoop.x - hoop.w * 1.2 &&
+        ball.x <= hoop.x + hoop.w * 2.2;
+
+      if (
+        ball.y < hoopCenterY - hoop.h * .35 &&
+        wideEnough
+      ) {
+        shot.hasBeenAbove = true;
+      }
+
+      if (
+        shot.hasBeenAbove &&
+        state.ballHistory.length >= 2
+      ) {
+        const p2 =
+          state.ballHistory[state.ballHistory.length - 1];
+
+        const p1 =
+          state.ballHistory[state.ballHistory.length - 2];
+
+        const descendingCross =
+          p1.y <= hoopCenterY &&
+          p2.y > hoopCenterY;
+
+        if (descendingCross) {
+          const dy = p2.y - p1.y;
+
+          const fraction =
+            dy === 0
+              ? 0
+              : (hoopCenterY - p1.y) / dy;
+
+          const crossX =
+            p1.x + fraction * (p2.x - p1.x);
+
+          const margin = hoop.w * .18;
+
+          if (
+            crossX >= hoop.x - margin &&
+            crossX <= hoop.x + hoop.w + margin
+          ) {
+            finalizeShot("make", shot.origin);
+            return;
+          }
+        }
+      }
+
+      const v = getVelocity();
+
+      if (
+        shot.hasBeenAbove &&
+        v.vy > AH * .18 &&
+        ball.y > hoop.y + hoop.h * 4.5
+      ) {
+        finalizeShot("miss", shot.origin);
+        return;
+      }
+    }
+
+    if (now - shot.startedAt > 4200) {
+      finalizeShot("miss", shot.origin);
+    }
+  }
+
+  function relativeShotLocation(origin) {
+    const hoop = getHoopA();
+
+    if (!hoop || !origin) {
+      return { x: .5, y: .8 };
+    }
+
+    const hoopX = hoop.x + hoop.w / 2;
+    const floorStart =
+      clamp(hoop.y + hoop.h * 1.2, 0, AH - 20);
+
+    const usableDepth =
+      Math.max(20, AH - floorStart);
+
+    const y =
+      clamp((origin.y - floorStart) / usableDepth, 0, 1);
+
+    const x =
+      clamp(.5 + (origin.x - hoopX) / (AW * .85), .03, .97);
+
+    return { x, y };
+  }
+
+  function finalizeShot(result, origin) {
+    const position =
+      relativeShotLocation(origin);
+
+    state.shots.push({
+      result,
+      x: position.x,
+      y: position.y,
+      imageX: origin?.x ?? null,
+      imageY: origin?.y ?? null,
+      time: new Date().toISOString()
+    });
+
+    state.pendingShot = null;
+
+    setStatus(
+      result === "make"
+        ? "✅ RAAK"
+        : "❌ MIS"
+    );
+
+    updateStats();
+  }
+
+  function manualShot(result) {
+    let origin = null;
+
+    if (
+      state.lastOwner &&
+      performance.now() - state.lastOwner.t < 1600
+    ) {
+      const p = state.lastOwner.person;
+
+      origin = {
+        x: p.x + p.w / 2,
+        y: p.y + p.h
+      };
+    }
+
+    if (!origin) {
+      origin = {
+        x: AW / 2,
+        y: AH * .8
+      };
+    }
+
+    state.pendingShot = null;
+    finalizeShot(result, origin);
+  }
+
+  function drawOverlay() {
+    octx.clearRect(
+      0,
+      0,
+      overlay.width,
+      overlay.height
+    );
+
+    const sx = overlay.width / AW;
+    const sy = overlay.height / AH;
+
+    // Basket
+    if (state.hoop) {
+      const r = {
+        x: state.hoop.x * overlay.width,
+        y: state.hoop.y * overlay.height,
+        w: state.hoop.w * overlay.width,
+        h: state.hoop.h * overlay.height
+      };
+
+      octx.strokeStyle = "#ff7a00";
+      octx.lineWidth = Math.max(3, overlay.width / 320);
+
+      octx.strokeRect(r.x, r.y, r.w, r.h);
+
+      octx.fillStyle = "#ff7a00";
+      octx.font =
+        `${Math.max(15, overlay.width / 65)}px -apple-system`;
+
+      octx.fillText(
+        "BASKET",
+        r.x,
+        Math.max(20, r.y - 8)
+      );
+    }
+
+    // Draft
+    if (state.hoopDraft) {
+      const r = state.hoopDraft;
+
+      octx.strokeStyle = "#38bdf8";
+      octx.lineWidth = 4;
+
+      octx.strokeRect(
+        r.x,
+        r.y,
+        r.w,
+        r.h
+      );
+    }
+
+    // Persons
+    for (const p of state.persons) {
+      if (performance.now() - p.t > 900) continue;
+
+      octx.strokeStyle =
+        "rgba(56,189,248,.42)";
+
+      octx.lineWidth = 2;
+
+      octx.strokeRect(
+        p.x * sx,
+        p.y * sy,
+        p.w * sx,
+        p.h * sy
+      );
+    }
+
+    // Trajectory
+    if (state.ballHistory.length > 1) {
+      octx.beginPath();
+
+      state.ballHistory.forEach((p, i) => {
+        const x = p.x * sx;
+        const y = p.y * sy;
+
+        if (i === 0) octx.moveTo(x, y);
+        else octx.lineTo(x, y);
+      });
+
+      octx.strokeStyle =
+        "rgba(34,197,94,.72)";
+
+      octx.lineWidth = 3;
+      octx.stroke();
+    }
+
+    // Ball
+    if (state.ball) {
+      const x = state.ball.x * sx;
+      const y = state.ball.y * sy;
+
+      const radius =
+        Math.max(
+          8,
+          Math.max(state.ball.w * sx, state.ball.h * sy) / 2
+        );
+
+      octx.beginPath();
+      octx.arc(x, y, radius, 0, Math.PI * 2);
+
+      octx.strokeStyle =
+        state.ball.inferred
+          ? "#facc15"
+          : "#22c55e";
+
+      octx.lineWidth = 4;
+      octx.stroke();
+
+      octx.fillStyle =
+        state.ball.inferred
+          ? "#facc15"
+          : "#22c55e";
+
+      octx.font =
+        `${Math.max(15, overlay.width / 65)}px -apple-system`;
+
+      octx.fillText(
+        state.ball.inferred ? "PREDICTED" : "BALL",
+        x + radius + 5,
+        y
+      );
+    }
+
+    // Release position
+    if (state.pendingShot?.origin) {
+      const p = state.pendingShot.origin;
+
+      octx.beginPath();
+
+      octx.arc(
+        p.x * sx,
+        p.y * sy,
+        12,
+        0,
+        Math.PI * 2
+      );
+
+      octx.fillStyle =
+        "rgba(255,122,0,.7)";
+
+      octx.fill();
+    }
+  }
+
+  function drawShotChart() {
+    const W = chart.width;
+    const H = chart.height;
+
+    cctx.clearRect(0, 0, W, H);
+
+    cctx.fillStyle = "#c17b42";
+    cctx.fillRect(0, 0, W, H);
+
+    cctx.strokeStyle = "rgba(255,255,255,.76)";
+    cctx.lineWidth = 4;
+
+    // buitenlijnen
+    cctx.strokeRect(12, 12, W - 24, H - 24);
+
+    // basket
+    cctx.beginPath();
+    cctx.arc(W / 2, 58, 11, 0, Math.PI * 2);
+    cctx.stroke();
+
+    // bord
+    cctx.beginPath();
+    cctx.moveTo(W / 2 - 42, 37);
+    cctx.lineTo(W / 2 + 42, 37);
+    cctx.stroke();
+
+    // bucket
+    cctx.strokeRect(
+      W / 2 - 92,
+      12,
+      184,
+      180
+    );
+
+    // vrije worp cirkel
+    cctx.beginPath();
+    cctx.arc(
+      W / 2,
+      192,
+      62,
+      0,
+      Math.PI
+    );
+    cctx.stroke();
+
+    // 3-puntsboog indicatief
+    cctx.beginPath();
+    cctx.arc(
+      W / 2,
+      58,
+      290,
+      0.15 * Math.PI,
+      0.85 * Math.PI
+    );
+    cctx.stroke();
+
+    for (const shot of state.shots) {
+      const x =
+        25 + shot.x * (W - 50);
+
+      const y =
+        58 + shot.y * (H - 83);
+
+      cctx.beginPath();
+      cctx.arc(x, y, 10, 0, Math.PI * 2);
+
+      cctx.fillStyle =
+        shot.result === "make"
+          ? "#22c55e"
+          : "#ef4444";
+
+      cctx.fill();
+
+      cctx.strokeStyle = "#fff";
+      cctx.lineWidth = 2;
+      cctx.stroke();
+    }
+  }
+
+  async function frameLoop(now) {
+    if (!state.running) return;
+
+    if (video.readyState >= 2) {
+      actx.drawImage(
+        video,
+        0,
+        0,
+        AW,
+        AH
+      );
+
+      runAIDetection(now);
+
+      const colorBall =
+        trackBallByColor();
+
+      const aiBall =
+        chooseAIBall();
+
+      const measurement =
+        fuseBallMeasurements(
+          colorBall,
+          aiBall
+        );
+
+      updateBallTrack(
+        measurement,
+        now
+      );
+
+      updateOwner(
+        state.ball,
+        now
+      );
+
+      maybeStartShot(now);
+      updatePendingShot(now);
+
+      drawOverlay();
+
+      state.frameCounter++;
+      state.fpsCounter++;
+
+      if (
+        now - state.fpsLastAt >= 1000
+      ) {
+        $("fpsText").textContent =
+          state.fpsCounter + " fps";
+
+        state.fpsCounter = 0;
+        state.fpsLastAt = now;
+      }
+    }
+
+    requestAnimationFrame(frameLoop);
+  }
+
+  function resetSession() {
+    state.shots = [];
+    state.pendingShot = null;
+    state.ballHistory = [];
+
+    updateStats();
+
+    setStatus(
+      state.running
+        ? "Nieuwe sessie gestart"
+        : "Sessie gewist"
+    );
+  }
+
+  function undoLast() {
+    if (!state.shots.length) return;
+
+    state.shots.pop();
+    updateStats();
+  }
+
+  function exportCSV() {
+    if (!state.shots.length) return;
+
+    const rows = [
+      [
+        "shot",
+        "result",
+        "relative_x",
+        "relative_distance",
+        "image_x",
+        "image_y",
+        "timestamp"
+      ]
+    ];
+
+    state.shots.forEach((s, i) => {
+      rows.push([
+        i + 1,
+        s.result,
+        s.x.toFixed(4),
+        s.y.toFixed(4),
+        s.imageX ?? "",
+        s.imageY ?? "",
+        s.time
+      ]);
+    });
+
+    const csv =
+      rows
+        .map(r => r.join(","))
+        .join("\n");
+
+    const blob =
+      new Blob(
+        [csv],
+        { type: "text/csv;charset=utf-8" }
+      );
+
+    const url =
+      URL.createObjectURL(blob);
+
+    const a =
+      document.createElement("a");
+
+    a.href = url;
+    a.download =
+      "gymcourt-" +
+      new Date().toISOString().slice(0,19).replace(/[:T]/g,"-") +
+      ".csv";
+
+    a.click();
+
+    setTimeout(
+      () => URL.revokeObjectURL(url),
+      1000
+    );
+  }
+
+  $("cameraBtn").addEventListener(
+    "click",
+    startCamera
+  );
+
+  $("hoopBtn").addEventListener(
+    "click",
+    () => setMode("hoop")
+  );
+
+  $("ballBtn").addEventListener(
+    "click",
+    () => setMode("ball")
+  );
+
+  $("sessionBtn").addEventListener(
+    "click",
+    resetSession
+  );
+
+  $("manualMake").addEventListener(
+    "click",
+    () => manualShot("make")
+  );
+
+  $("manualMiss").addEventListener(
+    "click",
+    () => manualShot("miss")
+  );
+
+  $("undoBtn").addEventListener(
+    "click",
+    undoLast
+  );
+
+  $("exportBtn").addEventListener(
+    "click",
+    exportCSV
+  );
+
+  $("resetBtn").addEventListener(
+    "click",
+    resetSession
+  );
+
+  drawShotChart();
+  updateStats();
+  updateCalibrationUI();
+
+})();
+</script>
+</body>
+</html>
